@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ব্যবসায়িক ম্যানেজমেন্ট সিস্টেম</title>
+    <style>
+        :root { --primary: #1e293b; --secondary: #10b981; --bg: #f8fafc; --sidebar: #0f172a; --danger: #ef4444; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg); color: #333; display: flex; height: 100vh; overflow: hidden; }
+        
+        #loginOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: #0f172a; z-index: 999; display: flex; align-items: center; justify-content: center; }
+        .login-card { background: white; padding: 30px; border-radius: 12px; width: 340px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        
+        .sidebar { width: 260px; background: var(--sidebar); color: white; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 20px; text-align: center; background: #020617; border-bottom: 1px solid #1e293b; }
+        .sidebar-header h3 { margin: 5px 0 0 0; font-size: 18px; color: #34d399; }
+        .sidebar-menu { display: flex; flex-direction: column; padding-top: 10px; }
+        .sidebar-menu button { background: none; border: none; color: #94a3b8; padding: 14px 20px; text-align: left; cursor: pointer; font-size: 14px; border-left: 4px solid transparent; transition: 0.2s; }
+        .sidebar-menu button:hover, .sidebar-menu button.active { background: #1e293b; color: white; border-left-color: var(--secondary); font-weight: bold; }
+        
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        header { background: var(--primary); color: white; padding: 12px 20px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .bismillah-text { text-align: center; font-family: 'Amiri', 'Traditional Arabic', serif; font-size: 18px; color: #10b981; margin-bottom: 5px; font-weight: bold; }
+        header .bismillah-text { color: #34d399; margin: 0; }
+        
+        .container { padding: 20px; max-width: 1000px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input, select, button { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        button.btn-submit { background: var(--secondary); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button.btn-print { background: #6366f1; color: white; border: none; font-weight: bold; cursor: pointer; width: auto; padding: 8px 15px; margin-bottom: 10px; float: right; }
+        button.btn-edit { background: #3b82f6; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: auto; margin-right: 5px; }
+        button.btn-delete { background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: auto; }
+        button.btn-approve { background: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; width: auto; margin-right: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table, th, td { border: 1px solid #e2e8f0; }
+        th, td { padding: 10px; text-align: left; font-size: 14px; }
+        th { background: #f1f5f9; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .summary-box { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid var(--secondary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        .clear-float { clear: both; }
+
+        @media print {
+            body * { visibility: hidden; }
+            .print-area, .print-area * { visibility: visible; }
+            .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+            .btn-print, button, form, .sidebar, header, .bismillah-page-header, .action-col { display: none !important; }
+        }
+        #printableInvoice { display: none; background: white; padding: 30px; border: 1px solid #ddd; margin-top: 15px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<!-- Login Modal -->
+<div id="loginOverlay">
+    <div class="login-card">
+        <div class="bismillah-text">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+        <h2 style="margin-top:10px; text-align:center; color:#0f172a;" id="loginTitle">লগইন করুন</h2>
+        
+        <div id="loginForm">
+            <div class="form-group">
+                <label>ইউজার টাইপ</label>
+                <select id="loginRole" onchange="toggleLoginInputs()">
+                    <option value="admin">অ্যাডমিন (Admin)</option>
+                    <option value="staff">স্টাফ (Staff)</option>
+                </select>
+            </div>
+            <div class="form-group" id="staffNidGroup" style="display:none;">
+                <label>এনআইডি (NID)</label>
+                <input type="text" id="loginNid" placeholder="আপনার NID দিন">
+            </div>
+            <div class="form-group">
+                <label>পাসওয়ার্ড</label>
+                <input type="password" id="loginPass" placeholder="পাসওয়ার্ড দিন">
+            </div>
+            <button onclick="checkLogin()" class="btn-submit">প্রবেশ করুন</button>
+            
+            <div style="margin-top:15px; font-size:13px; text-align:center;">
+                <span id="staffRegText">স্টাফ অ্যাকাউন্ট নেই? <a href="#" onclick="toggleAuthMode('register')">আবেদন করুন</a></span>
+                <br><br>
+                <a href="#" onclick="toggleAuthMode('forgot')" style="color:#ef4444; text-decoration:none;">পাসওয়ার্ড ভুলে গেছেন?</a>
+                <br><br>
+                <a href="#" onclick="resetAllAppSystem()" style="color:#64748b; font-size:11px; text-decoration:underline;">লগইন সমস্যা হলে সিস্টেম রিসেট করুন</a>
+            </div>
+        </div>
+
+        <div id="registerForm" style="display:none;">
+            <div class="form-group"><label>নাম</label><input type="text" id="regName" required></div>
+            <div class="form-group"><label>এনআইডি (NID)</label><input type="text" id="regNid" required></div>
+            <div class="form-group"><label>মোবাইল</label><input type="text" id="regPhone" required></div>
+            <div class="form-group"><label>পাসওয়ার্ড</label><input type="password" id="regPass" required></div>
+            <button onclick="registerStaff()" class="btn-submit">আবেদন জমা দিন</button>
+            <p style="text-align:center; margin-top:15px; font-size:13px;">
+                অ্যাকাউন্ট আছে? <a href="#" onclick="toggleAuthMode('login')">লগইন করুন</a>
+            </p>
+        </div>
+
+        <div id="forgotForm" style="display:none;">
+            <p style="font-size:13px; color:#64748b;">অ্যাডমিন পাসওয়ার্ড রিসেট করতে নিবন্ধিত ইমেইলে ভেরিফিকেশন কোড পাঠানো হবে।</p>
+            <div class="form-group">
+                <label>অ্যাডমিন ইমেইল</label>
+                <input type="email" id="forgotEmail" value="urdu1844@gmail.com" placeholder="urdu1844@gmail.com">
+            </div>
+            <button onclick="sendAdminOtp()" class="btn-submit">কোড পাঠান</button>
+            
+            <div id="otpSection" style="display:none; margin-top:15px;">
+                <div class="form-group"><label>৬ ডিজিটের OTP কোড</label><input type="text" id="otpInput"></div>
+                <div class="form-group"><label>নতুন পাসওয়ার্ড</label><input type="password" id="resetNewPass"></div>
+                <button onclick="verifyAndResetAdminPass()" class="btn-submit" style="background:#3b82f6;">পাসওয়ার্ড পরিবর্তন করুন</button>
+            </div>
+            <p style="text-align:center; margin-top:15px; font-size:13px;">
+                <a href="#" onclick="toggleAuthMode('login')">লগইনে ফিরে যান</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Left Sidebar -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="bismillah-text" style="font-size: 14px;">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+        <h3 id="sidebarCompTitle">ব্যবসা অ্যাপ</h3>
+    </div>
+    <div class="sidebar-menu">
+        <button class="active admin-only" onclick="switchTab('dashboard', this)">📊 ড্যাশবোর্ড</button>
+        <button onclick="switchTab('sales', this)">🛒 বিক্রয় এন্ট্রি ও তালিকা</button>
+        <button onclick="switchTab('returns', this)">🔄 সেলস রিটার্ন (ফেরত)</button>
+        <button onclick="switchTab('purchase', this)">📦 পণ্য ক্রয় (মাদার স্টক)</button>
+        <button onclick="switchTab('expense', this)">💸 খরচ ও খরচের খাত</button>
+        <button class="admin-only" onclick="switchTab('catalog', this)">🏷️ পণ্য তালিকা</button>
+        <button class="admin-only" onclick="switchTab('employee', this)">👥 কর্মচারী ও অনুমোদন</button>
+        <button class="admin-only" onclick="switchTab('investment', this)">💰 বিনিয়োগ ও শেয়ার</button>
+        <button class="admin-only" onclick="switchTab('reports', this)">📈 বার্ষিক রিপোর্ট</button>
+        <button class="admin-only" onclick="switchTab('settings', this)">⚙️ সেটিংস</button>
+    </div>
+</div>
+
+<!-- Main Wrapper -->
+<div class="main-wrapper">
+    <header>
+        <span id="companyTitle" style="font-weight: bold;">আমার ব্যবসা প্রতিষ্ঠান</span>
+        <div class="bismillah-text">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+        <span>ইউজার: <strong id="currentUserRole">-</strong> | <a href="#" onclick="logout()" style="color:#f87171; text-decoration:none;">লগআউট</a></span>
+    </header>
+
+    <div class="container">
+        <div class="bismillah-text bismillah-page-header" style="font-size: 22px; margin-bottom: 15px;">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="tab-content active">
+            <div class="card print-area" id="dashPrintSection">
+                <button onclick="printSection('dashPrintSection')" class="btn-print">🖨️ সামারি প্রিন্ট করুন</button>
+                <h3>সারসংক্ষেপ ও ইনস্ট্যান্ট লাভ/ক্ষতি (Real-time Report)</h3>
+                <div class="summary-grid">
+                    <div class="summary-box"><h4>মোট বিনিয়োগ</h4><p id="dashInvest">৳ ০</p></div>
+                    <div class="summary-box"><h4>মোট পণ্য ক্রয়</h4><p id="dashPurchase">৳ ০</p></div>
+                    <div class="summary-box"><h4>মোট বিক্রি (নিট)</h4><p id="dashSales">৳ ০</p></div>
+                    <div class="summary-box"><h4>মোট ফেরত</h4><p id="dashReturn">৳ ০</p></div>
+                    <div class="summary-box"><h4>মোট খরচ</h4><p id="dashExpense">৳ ০</p></div>
+                    <div class="summary-box" style="border-left-color: #3b82f6;"><h4>বর্তমান লাভ/ক্ষতি</h4><p id="dashProfit">৳ ০</p></div>
+                </div>
+                <div style="margin-top:25px;">
+                    <h4>বর্তমান স্টক অবস্থা (Current Stock)</h4>
+                    <table>
+                        <thead><tr><th>পণ্য</th><th>বর্তমান পরিমাণ</th></tr></thead>
+                        <tbody id="currentStockTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Return -->
+        <div id="returns" class="tab-content">
+            <div class="card">
+                <h3>পণ্য ফেরত এন্ট্রি (Sales Return)</h3>
+                <form onsubmit="addReturn(event)">
+                    <div class="form-group"><label>পণ্য নির্বাচন</label><select id="rProduct" required></select></div>
+                    <div class="form-group"><label>পরিমাণ</label><input type="number" id="rQty" min="1" required></div>
+                    <div class="form-group"><label>একক ফেরত মূল্য (৳)</label><input type="number" id="rPrice" required></div>
+                    <div class="form-group"><label>ক্রেতার নাম</label><input type="text" id="rCustomer" placeholder="ঐচ্ছিক"></div>
+                    <div class="form-group"><label>তারিখ</label><input type="date" id="rDate" required></div>
+                    <button type="submit" class="btn-submit" style="background-color: var(--danger);">ফেরত প্রসেস করুন</button>
+                </form>
+            </div>
+            <div class="card print-area" id="returnPrintSection">
+                <button onclick="printSection('returnPrintSection')" class="btn-print">🖨️ ফেরত তালিকা প্রিন্ট করুন</button>
+                <h4>ফেরত পণ্যের তালিকা</h4>
+                <div class="clear-float"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>তারিখ</th>
+                            <th>পণ্য</th>
+                            <th>পরিমাণ</th>
+                            <th>ফেরত মূল্য (৳)</th>
+                            <th>ক্রেতা</th>
+                            <th class="action-col admin-only">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnsTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sales -->
+        <div id="sales" class="tab-content">
+            <div class="card">
+                <h3>পণ্য বিক্রয় (Sales Log)</h3>
+                <form onsubmit="addSale(event)">
+                    <div class="form-group"><label>পণ্য নির্বাচন</label><select id="sProduct" required></select></div>
+                    <div class="form-group"><label>পরিমাণ</label><input type="number" id="sQty" min="1" required></div>
+                    <div class="form-group"><label>একক বিক্রয়মূল্য (৳)</label><input type="number" id="sPrice" required></div>
+                    <div class="form-group"><label>ক্রেতার নাম</label><input type="text" id="sCustomer" required></div>
+                    <div class="form-group"><label>তারিখ</label><input type="date" id="sDate" required></div>
+                    <button type="submit" class="btn-submit">বিক্রি সম্পন্ন করুন</button>
+                </form>
+            </div>
+
+            <div class="card print-area" id="salesLogPrintSection">
+                <button onclick="printSection('salesLogPrintSection')" class="btn-print">🖨️ বিক্রয় তালিকা প্রিন্ট করুন</button>
+                <h4>সর্বশেষ বিক্রয়ের তালিকা</h4>
+                <div class="clear-float"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>তারিখ</th>
+                            <th>ক্রেতার নাম</th>
+                            <th>পণ্য</th>
+                            <th>পরিমাণ</th>
+                            <th>দর (৳)</th>
+                            <th>মোট (৳)</th>
+                            <th class="action-col admin-only">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesLogTable"></tbody>
+                </table>
+            </div>
+
+            <div id="printableInvoice" class="print-area">
+                <h2 id="invCompany" style="margin:5px 0;"></h2>
+                <hr>
+                <div style="text-align: left;">
+                    <p><strong>তারিখ:</strong> <span id="invDate"></span></p>
+                    <p><strong>ক্রেতার নাম:</strong> <span id="invCustomer"></span></p>
+                </div>
+                <table>
+                    <thead><tr><th>পণ্যের নাম</th><th>পরিমাণ</th><th>দর</th><th>মোট (৳)</th></tr></thead>
+                    <tbody>
+                        <tr><td id="invProd"></td><td id="invQty"></td><td id="invPrice"></td><td id="invTotal"></td></tr>
+                    </tbody>
+                </table>
+                <br>
+                <button onclick="window.print()" class="btn-submit">ক্যাশ মেমো প্রিন্ট করুন</button>
+            </div>
+        </div>
+
+        <!-- Investment -->
+        <div id="investment" class="tab-content">
+            <div class="card">
+                <h3>নতুন বিনিয়োগকারীর তথ্য যোগ করুন</h3>
+                <form onsubmit="addInvestment(event)">
+                    <div class="form-group"><label>বিনিয়োগকারীর নাম</label><input type="text" id="invName" required></div>
+                    <div class="form-group"><label>বিনিয়োগের পরিমাণ (৳)</label><input type="number" id="invAmount" required></div>
+                    <div class="form-group"><label>শেয়ার/লভ্যাংশের হার (%)</label><input type="number" step="0.1" id="invShare" placeholder="যেমন: 20" required></div>
+                    <div class="form-group"><label>তারিখ</label><input type="date" id="invEntryDate" required></div>
+                    <button type="submit" class="btn-submit">বিনিয়োগ সেভ করুন</button>
+                </form>
+            </div>
+            <div class="card print-area" id="investorPrintSection">
+                <button onclick="printSection('investorPrintSection')" class="btn-print">🖨️ বিনিয়োগ তালিকা প্রিন্ট করুন</button>
+                <h4>বিনিয়োগকারী ও লভ্যাংশ বণ্টন তালিকা</h4>
+                <div class="clear-float"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>তারিখ</th>
+                            <th>নাম</th>
+                            <th>বিনিয়োগ (৳)</th>
+                            <th>শেয়ার (%)</th>
+                            <th>অর্জিত লভ্যাংশ (৳)</th>
+                            <th class="action-col admin-only">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="investorTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Product Catalog -->
+        <div id="catalog" class="tab-content">
+            <div class="card">
+                <h3>পণ্যের নাম এন্ট্রি/এডিট</h3>
+                <form onsubmit="addCatalogProduct(event)">
+                    <div class="form-group"><label>পণ্যের নাম</label><input type="text" id="catName" placeholder="যেমন: রুই মাছ" required></div>
+                    <button type="submit" class="btn-submit">তালিকায় সেভ করুন</button>
+                </form>
+            </div>
+            <div class="card">
+                <h4>সংরক্ষিত পণ্যের তালিকা</h4>
+                <table>
+                    <thead><tr><th>পণ্যের নাম</th><th class="action-col admin-only">অ্যাকশন</th></tr></thead>
+                    <tbody id="catalogTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Employee & Approvals -->
+        <div id="employee" class="tab-content">
+            <div class="card">
+                <h3>নতুন কর্মচারী তথ্য নিবন্ধন (অ্যাডমিন এন্ট্রি)</h3>
+                <form onsubmit="addEmployee(event)">
+                    <div class="form-group"><label>এনআইডি (NID)</label><input type="text" id="empNid" required></div>
+                    <div class="form-group"><label>কর্মচারীর নাম</label><input type="text" id="empName" required></div>
+                    <div class="form-group"><label>মোবাইল নম্বর</label><input type="text" id="empPhone" required></div>
+                    <div class="form-group"><label>বয়স</label><input type="number" id="empAge" required></div>
+                    <div class="form-group"><label>পদবি</label><input type="text" id="empRole" required></div>
+                    <div class="form-group"><label>মাসিক বেতন (৳)</label><input type="number" id="empSalary" required></div>
+                    <div class="form-group"><label>পাসওয়ার্ড</label><input type="text" id="empPass" value="1234" required></div>
+                    <button type="submit" class="btn-submit">কর্মচারী সেভ করুন</button>
+                </form>
+            </div>
+            <div class="card">
+                <h4>কর্মচারীদের তালিকা ও পাসওয়ার্ড পুনর্বহাল</h4>
+                <table>
+                    <thead><tr><th>NID</th><th>নাম</th><th>মোবাইল</th><th>বয়স</th><th>পদবি</th><th>বেতন</th><th>স্ট্যাটাস</th><th class="action-col admin-only">অ্যাকশন</th></tr></thead>
+                    <tbody id="empTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Expense & Categories -->
+        <div id="expense" class="tab-content">
+            <div class="card admin-only">
+                <h3>নতুন খরচের খাত যুক্ত করুন</h3>
+                <form onsubmit="addExpenseCategory(event)">
+                    <div class="form-group"><label>খাতের নাম</label><input type="text" id="newExpCat" placeholder="যেমন: পরিবহন খরচ" required></div>
+                    <button type="submit" class="btn-submit">খাত সেভ করুন</button>
+                </form>
+            </div>
+            <div class="card">
+                <h3>ব্যয় এন্ট্রি (Expense Entry)</h3>
+                <form onsubmit="addExpense(event)">
+                    <div class="form-group"><label>পরিমাণ (৳)</label><input type="number" id="expAmount" required></div>
+                    <div class="form-group"><label>খরচের খাত</label><select id="expCategory"></select></div>
+                    <div class="form-group"><label>তারিখ</label><input type="date" id="expDate" required></div>
+                    <button type="submit" class="btn-submit">খরচ যুক্ত করুন</button>
+                </form>
+            </div>
+            <div class="card print-area" id="expensePrintSection">
+                <button onclick="printSection('expensePrintSection')" class="btn-print">🖨️ খরচের তালিকা প্রিন্ট করুন</button>
+                <h4>খরচের ইতিহাস</h4>
+                <div class="clear-float"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>তারিখ</th>
+                            <th>খাতের নাম</th>
+                            <th>পরিমাণ (৳)</th>
+                            <th class="action-col admin-only">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenseLogTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Purchase / Mother Stock -->
+        <div id="purchase" class="tab-content">
+            <div class="card">
+                <h3>পণ্য ক্রয় এন্ট্রি (Mother Stock)</h3>
+                <form onsubmit="addPurchase(event)">
+                    <div class="form-group"><label>পণ্য নির্বাচন</label><select id="pNameSelect" required></select></div>
+                    <div class="form-group"><label>পরিমাণ</label><input type="number" id="pQty" min="1" required></div>
+                    <div class="form-group"><label>একক ক্রয়মূল্য (৳)</label><input type="number" id="pPrice" required></div>
+                    <div class="form-group"><label>তারিখ</label><input type="date" id="pDate" required></div>
+                    <button type="submit" class="btn-submit">স্টকে যুক্ত করুন</button>
+                </form>
+            </div>
+            <div class="card print-area" id="stockPrintSection">
+                <button onclick="printSection('stockPrintSection')" class="btn-print">🖨️ স্টক তালিকা প্রিন্ট করুন</button>
+                <h4>মাদার স্টক ক্রয় ইতিহাস</h4>
+                <div class="clear-float"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>তারিখ</th>
+                            <th>পণ্য</th>
+                            <th>পরিমাণ</th>
+                            <th>একক মূল্য</th>
+                            <th>মোট মূল্য</th>
+                            <th class="action-col admin-only">অ্যাকশন</th>
+                        </tr>
+                    </thead>
+                    <tbody id="motherStockTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Reports -->
+        <div id="reports" class="tab-content">
+            <div class="card print-area" id="reportPrintSection">
+                <button onclick="printSection('reportPrintSection')" class="btn-print">🖨️ বার্ষিক রিপোর্ট প্রিন্ট করুন</button>
+                <h3>বার্ষিক রিপোর্ট</h3>
+                <div class="form-group btn-print"><label>বছর নির্বাচন</label><input type="number" id="reportYear" value="2026"></div>
+                <button onclick="generateReport()" class="btn-submit btn-print">রিপোর্ট তৈরি করুন</button>
+                <div class="clear-float"></div>
+                <div style="margin-top:20px;">
+                    <h4>বার্ষিক হিসাব সামারি</h4>
+                    <p>মোট ক্রয়: <span id="rPurchase">৳ ০</span></p>
+                    <p>মোট বিক্রি (গ্রস): <span id="rSales">৳ ০</span></p>
+                    <p>মোট ফেরত: <span id="rReturn">৳ ০</span></p>
+                    <p>মোট খরচ: <span id="rExpense">৳ ০</span></p>
+                    <p><strong>বার্ষিক নিট লাভ/ক্ষতি: <span id="rNetProfit">৳ ০</span></strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="settings" class="tab-content">
+            <div class="card">
+                <h3>সেটিংস</h3>
+                <div class="form-group"><label>কোম্পানির নাম</label><input type="text" id="compNameInput"></div>
+                <div class="form-group"><label>অ্যাডমিন রিকভারি ইমেইল</label><input type="email" id="adminEmailInput" value="urdu1844@gmail.com" placeholder="urdu1844@gmail.com"></div>
+                <div class="form-group"><label>নতুন অ্যাডমিন পাসওয়ার্ড</label><input type="password" id="newAdminPass" placeholder="নতুন পাসওয়ার্ড না দিলে ফাঁকা রাখুন"></div>
+                <button onclick="saveSettings()" class="btn-submit">সংরক্ষণ করুন</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const defaultData = {
+        company: 'আমার ব্যবসা প্রতিষ্ঠান',
+        adminPass: '1234',
+        adminEmail: 'urdu1844@gmail.com',
+        catalog: ['রুই মাছ', 'কাতলা মাছ'],
+        expCategories: ['পরিবহন খরচ', 'দোকান ভাড়া'],
+        employees: [],
+        motherStock: [],
+        currentStock: {},
+        sales: [],
+        returns: [],
+        expenses: [],
+        investments: []
+    };
+
+    let appData = defaultData;
+    let currentUserRole = 'staff';
+    let generatedOTP = null;
+
+    function recalculateStock() {
+        let stock = {};
+        (appData.motherStock || []).forEach(item => { stock[item.name] = (stock[item.name] || 0) + Number(item.qty); });
+        (appData.sales || []).forEach(item => { stock[item.name] = (stock[item.name] || 0) - Number(item.qty); });
+        (appData.returns || []).forEach(item => { stock[item.name] = (stock[item.name] || 0) + Number(item.qty); });
+        appData.currentStock = stock;
+    }
+
+    function loadLocalData() {
+        const stored = localStorage.getItem('fishBizData');
+        if(stored) {
+            try { 
+                appData = JSON.parse(stored);
+                // Force sync pass and email if they were missing or corrupted
+                if(!appData.adminPass) appData.adminPass = '1234';
+                if(!appData.adminEmail) appData.adminEmail = 'urdu1844@gmail.com';
+            } catch(e) { 
+                appData = defaultData; 
+            }
+        } else {
+            appData = defaultData;
+        }
+        recalculateStock();
+        refreshUI();
+    }
+
+    function saveData() {
+        recalculateStock();
+        localStorage.setItem('fishBizData', JSON.stringify(appData));
+        refreshUI();
+    }
+
+    function resetAllAppSystem() {
+        if(confirm('লগইন সমস্যা সমাধানের জন্য ব্রাউজারের সংরক্ষিত পুরোনো পাসওয়ার্ড রিসেট করা হবে। আপনি কি নিশ্চিত?')) {
+            localStorage.removeItem('fishBizData');
+            appData = defaultData;
+            saveData();
+            alert('সিস্টেম রিসেট করা হয়েছে! এখন পাসওয়ার্ড "1234" দিয়ে লগইন করুন।');
+            location.reload();
+        }
+    }
+
+    window.onload = function() { loadLocalData(); };
+
+    function printSection(sectionId) {
+        let printElement = document.getElementById(sectionId);
+        printElement.classList.add('print-area');
+        window.print();
+        printElement.classList.remove('print-area');
+    }
+
+    function toggleLoginInputs() {
+        let role = document.getElementById('loginRole').value;
+        document.getElementById('staffNidGroup').style.display = (role === 'staff') ? 'block' : 'none';
+    }
+
+    function toggleAuthMode(mode) {
+        document.getElementById('loginForm').style.display = (mode === 'login') ? 'block' : 'none';
+        document.getElementById('registerForm').style.display = (mode === 'register') ? 'block' : 'none';
+        document.getElementById('forgotForm').style.display = (mode === 'forgot') ? 'block' : 'none';
+        
+        if(mode === 'register') document.getElementById('loginTitle').innerText = 'স্টাফ আবেদন';
+        else if(mode === 'forgot') {
+            document.getElementById('loginTitle').innerText = 'পাসওয়ার্ড রিসেট';
+            document.getElementById('forgotEmail').value = appData.adminEmail || 'urdu1844@gmail.com';
+        }
+        else document.getElementById('loginTitle').innerText = 'লগইন করুন';
+    }
+
+    function sendAdminOtp() {
+        let email = document.getElementById('forgotEmail').value.trim().toLowerCase();
+        let targetEmail = (appData.adminEmail || 'urdu1844@gmail.com').toLowerCase();
+
+        if(!email || email !== targetEmail) {
+            return alert('সঠিক নিবন্ধিত অ্যাডমিন ইমেইল দিন! (আপনার ইমেইল: ' + targetEmail + ')');
+        }
+        generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+        alert('আপনার ইমেইলে (' + email + ') একটি OTP কোড পাঠানো হয়েছে: ' + generatedOTP);
+        document.getElementById('otpSection').style.display = 'block';
+    }
+
+    function verifyAndResetAdminPass() {
+        let inputOtp = document.getElementById('otpInput').value.trim();
+        let newPass = document.getElementById('resetNewPass').value.trim();
+
+        if(inputOtp !== generatedOTP) return alert('ভুল OTP কোড!');
+        if(!newPass) return alert('নতুন পাসওয়ার্ড দিন!');
+
+        appData.adminPass = newPass;
+        saveData();
+        alert('অ্যাডমিন পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে! এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।');
+        toggleAuthMode('login');
+    }
+
+    function registerStaff() {
+        let nid = document.getElementById('regNid').value;
+        let name = document.getElementById('regName').value;
+        let phone = document.getElementById('regPhone').value;
+        let pass = document.getElementById('regPass').value;
+
+        if(!nid || !pass) return alert('NID এবং পাসওয়ার্ড বাধ্যতামূলক!');
+
+        let exists = (appData.employees || []).find(e => e.nid === nid);
+        if(exists) return alert('এই NID আগেই ব্যবহার করা হয়েছে!');
+
+        if(!appData.employees) appData.employees = [];
+        appData.employees.push({ nid, name, phone, age: '-', role: 'Staff', salary: 0, pass, approved: false });
+        saveData();
+        alert('আবেদন জমা হয়েছে! অ্যাডমিনের অনুমোদনের অপেক্ষা করুন।');
+        toggleAuthMode('login');
+    }
+
+    function checkLogin() {
+        let role = document.getElementById('loginRole').value;
+        let pass = document.getElementById('loginPass').value.trim();
+
+        if(role === 'admin') {
+            let currentAdminPass = appData.adminPass || '1234';
+            if(pass === currentAdminPass) {
+                initUser('admin');
+            } else {
+                alert('ভুল পাসওয়ার্ড! ডিফল্ট পাসওয়ার্ড: 1234');
+            }
+        } else {
+            let nid = document.getElementById('loginNid').value.trim();
+            let emp = (appData.employees || []).find(e => e.nid === nid && e.pass === pass);
+            if(!emp) return alert('ভুল NID বা পাসওয়ার্ড!');
+            if(!emp.approved) return alert('আপনার অ্যাকাউন্টটি এখনও অ্যাডমিন কর্তৃক অনুমোদিত নয়!');
+            initUser('staff');
+        }
+    }
+
+    function initUser(role) {
+        currentUserRole = role;
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('currentUserRole').innerText = role.toUpperCase();
+        
+        if(role === 'staff') {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            switchTab('sales', document.querySelectorAll('.sidebar-menu button')[1]);
+        } else {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+            switchTab('dashboard', document.querySelectorAll('.sidebar-menu button')[0]);
+        }
+        refreshUI();
+    }
+
+    function logout() { 
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('loginPass').value = '';
+    }
+
+    function switchTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.sidebar-menu button').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        if(btn) btn.classList.add('active');
+    }
+
+    function refreshUI() {
+        document.getElementById('companyTitle').innerText = appData.company || 'আমার ব্যবসা প্রতিষ্ঠান';
+        document.getElementById('sidebarCompTitle').innerText = appData.company || 'ব্যবসা অ্যাপ';
+
+        let totalInv = (appData.investments || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+        let grossSales = (appData.sales || []).reduce((a, b) => a + Number(b.total || 0), 0);
+        let totalReturn = (appData.returns || []).reduce((a, b) => a + Number(b.total || 0), 0);
+        let netSales = grossSales - totalReturn;
+        let totalPurchase = (appData.motherStock || []).reduce((a, b) => a + Number((b.qty * b.price) || 0), 0);
+        let totalExp = (appData.expenses || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+        let netProfit = netSales - totalPurchase - totalExp;
+
+        document.getElementById('dashInvest').innerText = '৳ ' + totalInv;
+        document.getElementById('dashPurchase').innerText = '৳ ' + totalPurchase;
+        document.getElementById('dashSales').innerText = '৳ ' + netSales;
+        document.getElementById('dashReturn').innerText = '৳ ' + totalReturn;
+        document.getElementById('dashExpense').innerText = '৳ ' + totalExp;
+        document.getElementById('dashProfit').innerText = '৳ ' + netProfit;
+        document.getElementById('dashProfit').style.color = netProfit >= 0 ? 'green' : 'red';
+
+        // Catalog Dropdowns
+        let catOpt = ''; 
+        (appData.catalog || []).forEach(item => catOpt += `<option value="${item}">${item}</option>`);
+        document.getElementById('pNameSelect').innerHTML = catOpt;
+        document.getElementById('rProduct').innerHTML = catOpt;
+
+        // Investor Table
+        let invHtml = '';
+        (appData.investments || []).forEach((item, index) => {
+            let shareRatio = Number(item.share || 0) / 100;
+            let earnedProfit = netProfit > 0 ? (netProfit * shareRatio).toFixed(2) : 0;
+            invHtml += `<tr>
+                <td>${item.date || '-'}</td>
+                <td>${item.name}</td>
+                <td>৳ ${item.amount}</td>
+                <td>${item.share || 0}%</td>
+                <td style="color:${earnedProfit >= 0 ? 'green':'red'}; font-weight:bold;">৳ ${earnedProfit}</td>
+                <td class="action-col admin-only">
+                    <button onclick="editInvestment(${index})" class="btn-edit">এডিট</button>
+                    <button onclick="deleteInvestment(${index})" class="btn-delete">ডিলিট</button>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('investorTable').innerHTML = invHtml;
+
+        // Catalog Table
+        let catHtml = '';
+        (appData.catalog || []).forEach((item, index) => {
+            catHtml += `<tr><td>${item}</td><td class="action-col admin-only"><button onclick="editCatalog(${index})" class="btn-edit">এডিট</button></td></tr>`;
+        });
+        document.getElementById('catalogTable').innerHTML = catHtml;
+
+        // Employee Table
+        let empHtml = '';
+        (appData.employees || []).forEach((item, index) => {
+            let status = item.approved ? '<span style="color:green;font-weight:bold;">অনুমোদিত</span>' : '<span style="color:red;font-weight:bold;">পেন্ডিং</span>';
+            let approveBtn = `<button onclick="approveEmployee(${index})" class="btn-approve">${item.approved ? 'পুনরায় অনুমোদন/পাসওয়ার্ড রিসেট' : 'অনুমোদন দিন'}</button> `;
+            empHtml += `<tr>
+                <td>${item.nid || '-'}</td>
+                <td>${item.name}</td>
+                <td>${item.phone}</td>
+                <td>${item.age}</td>
+                <td>${item.role}</td>
+                <td>৳ ${item.salary}</td>
+                <td>${status}</td>
+                <td class="action-col admin-only">${approveBtn}<button onclick="editEmployee(${index})" class="btn-edit">এডিট</button></td>
+            </tr>`;
+        });
+        document.getElementById('empTable').innerHTML = empHtml;
+
+        // Expense Category Options & Log Table
+        let expOpt = ''; (appData.expCategories || []).forEach(item => expOpt += `<option value="${item}">${item}</option>`);
+        document.getElementById('expCategory').innerHTML = expOpt;
+
+        let expLogHtml = '';
+        (appData.expenses || []).forEach((e, index) => {
+            expLogHtml += `<tr>
+                <td>${e.date}</td>
+                <td>${e.category}</td>
+                <td>৳ ${e.amount}</td>
+                <td class="action-col admin-only">
+                    <button onclick="editExpense(${index})" class="btn-edit">এডিট</button>
+                    <button onclick="deleteExpense(${index})" class="btn-delete">ডিলিট</button>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('expenseLogTable').innerHTML = expLogHtml;
+
+        // Current Stock Table
+        let csHtml = ''; for(let prod in appData.currentStock) { csHtml += `<tr><td>${prod}</td><td>${appData.currentStock[prod]}</td></tr>`; }
+        document.getElementById('currentStockTable').innerHTML = csHtml;
+
+        // Purchase / Mother Stock Table
+        let msHtml = ''; 
+        (appData.motherStock || []).forEach((i, index) => { 
+            msHtml += `<tr>
+                <td>${i.date}</td>
+                <td>${i.name}</td>
+                <td>${i.qty}</td>
+                <td>৳ ${i.price}</td>
+                <td>৳ ${i.qty*i.price}</td>
+                <td class="action-col admin-only">
+                    <button onclick="editPurchase(${index})" class="btn-edit">এডিট</button>
+                    <button onclick="deletePurchase(${index})" class="btn-delete">ডিলিট</button>
+                </td>
+            </tr>`; 
+        });
+        document.getElementById('motherStockTable').innerHTML = msHtml;
+
+        // Sales Dropdown & Log Table
+        let optHtml = '';
+        for(let prod in appData.currentStock) {
+            if(appData.currentStock[prod] > 0) optHtml += `<option value="${prod}">${prod} (মজুদ: ${appData.currentStock[prod]})</option>`;
+        }
+        document.getElementById('sProduct').innerHTML = optHtml;
+
+        let salesLogHtml = '';
+        (appData.sales || []).forEach((s, index) => {
+            salesLogHtml += `<tr>
+                <td>${s.date}</td>
+                <td>${s.customer}</td>
+                <td>${s.name}</td>
+                <td>${s.qty}</td>
+                <td>৳ ${s.price}</td>
+                <td>৳ ${s.total}</td>
+                <td class="action-col admin-only">
+                    <button onclick="editSale(${index})" class="btn-edit">এডিট</button>
+                    <button onclick="deleteSale(${index})" class="btn-delete">ডিলিট</button>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('salesLogTable').innerHTML = salesLogHtml;
+
+        // Returns Table
+        let retHtml = '';
+        (appData.returns || []).forEach((r, index) => {
+            retHtml += `<tr>
+                <td>${r.date}</td>
+                <td>${r.name}</td>
+                <td>${r.qty}</td>
+                <td>৳ ${r.total}</td>
+                <td>${r.customer || '-'}</td>
+                <td class="action-col admin-only">
+                    <button onclick="editReturn(${index})" class="btn-edit">এডিট</button>
+                    <button onclick="deleteReturn(${index})" class="btn-delete">ডিলিট</button>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('returnsTable').innerHTML = retHtml;
+
+        document.getElementById('compNameInput').value = appData.company || '';
+        document.getElementById('adminEmailInput').value = appData.adminEmail || 'urdu1844@gmail.com';
+
+        if(currentUserRole === 'staff') {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+        } else {
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+        }
+    }
+
+    // --- Actions ---
+    function approveEmployee(index) {
+        let newPass = prompt('এই কর্মচারীর জন্য পাসওয়ার্ড সেট করুন:', appData.employees[index].pass || '1234');
+        if(newPass === null) return;
+        appData.employees[index].pass = newPass;
+        appData.employees[index].approved = true;
+        saveData(); 
+        alert('কর্মচারী অনুমোদিত এবং পাসওয়ার্ড সেট করা হয়েছে!');
+    }
+
+    function editPurchase(index) {
+        let item = appData.motherStock[index];
+        let qty = prompt('নতুন পরিমাণ:', item.qty); if(qty === null) return;
+        let price = prompt('নতুন একক ক্রয়মূল্য (৳):', item.price); if(price === null) return;
+        let date = prompt('তারিখ (YYYY-MM-DD):', item.date); if(date === null) return;
+
+        appData.motherStock[index] = { ...item, qty: Number(qty) || item.qty, price: Number(price) || item.price, date: date.trim() || item.date };
+        saveData();
+    }
+
+    function deletePurchase(index) {
+        if(confirm('আপনি কি এই ক্রয় এন্ট্রিটি মুছে ফেলতে চান?')) { appData.motherStock.splice(index, 1); saveData(); }
+    }
+
+    function editSale(index) {
+        let s = appData.sales[index];
+        let customer = prompt('ক্রেতার নাম:', s.customer); if(customer === null) return;
+        let qty = prompt('পরিমাণ:', s.qty); if(qty === null) return;
+        let price = prompt('একক বিক্রি মূল্য (৳):', s.price); if(price === null) return;
+        let date = prompt('তারিখ (YYYY-MM-DD):', s.date); if(date === null) return;
+
+        let newQty = Number(qty) || s.qty;
+        let newPrice = Number(price) || s.price;
+        appData.sales[index] = { ...s, customer: customer.trim() || s.customer, qty: newQty, price: newPrice, total: newQty * newPrice, date: date.trim() || s.date };
+        saveData();
+    }
+
+    function deleteSale(index) {
+        if(confirm('আপনি কি এই বিক্রয়ের তথ্য মুছে ফেলতে চান?')) { appData.sales.splice(index, 1); saveData(); }
+    }
+
+    function editReturn(index) {
+        let r = appData.returns[index];
+        let qty = prompt('পরিমাণ:', r.qty); if(qty === null) return;
+        let price = prompt('একক ফেরত মূল্য (৳):', r.price || (r.total/r.qty)); if(price === null) return;
+        let customer = prompt('ক্রেতার নাম:', r.customer); if(customer === null) return;
+        let date = prompt('তারিখ (YYYY-MM-DD):', r.date); if(date === null) return;
+
+        let newQty = Number(qty) || r.qty;
+        let newPrice = Number(price) || (r.total/r.qty);
+        appData.returns[index] = { ...r, qty: newQty, price: newPrice, total: newQty * newPrice, customer: customer.trim() || r.customer, date: date.trim() || r.date };
+        saveData();
+    }
+
+    function deleteReturn(index) {
+        if(confirm('আপনি কি এই ফেরত রেকর্ড মুছে ফেলতে চান?')) { appData.returns.splice(index, 1); saveData(); }
+    }
+
+    function editExpense(index) {
+        let e = appData.expenses[index];
+        let amount = prompt('পরিমাণ (৳):', e.amount); if(amount === null) return;
+        let date = prompt('তারিখ (YYYY-MM-DD):', e.date); if(date === null) return;
+
+        appData.expenses[index] = { ...e, amount: Number(amount) || e.amount, date: date.trim() || e.date };
+        saveData();
+    }
+
+    function deleteExpense(index) {
+        if(confirm('আপনি কি এই খরচ এন্ট্রি মুছে ফেলতে চান?')) { appData.expenses.splice(index, 1); saveData(); }
+    }
+
+    function addReturn(e) {
+        e.preventDefault();
+        let name = document.getElementById('rProduct').value;
+        let qty = Number(document.getElementById('rQty').value);
+        let price = Number(document.getElementById('rPrice').value);
+        let customer = document.getElementById('rCustomer').value;
+        let date = document.getElementById('rDate').value;
+
+        if(!name) return alert('পণ্য নির্বাচন করুন!');
+        let total = qty * price;
+        if(!appData.returns) appData.returns = [];
+        appData.returns.push({ name, qty, price, total, customer, date });
+        saveData(); e.target.reset(); alert('ফেরত প্রসেস সফল হয়েছে!');
+    }
+
+    function addInvestment(e) {
+        e.preventDefault();
+        let name = document.getElementById('invName').value;
+        let amount = Number(document.getElementById('invAmount').value);
+        let share = Number(document.getElementById('invShare').value);
+        let date = document.getElementById('invEntryDate').value;
+        
+        if(!appData.investments) appData.investments = [];
+        appData.investments.push({ name, amount, share, date });
+        saveData(); e.target.reset(); alert('বিনিয়োগকারীর তথ্য যুক্ত হয়েছে!');
+    }
+
+    function editInvestment(index) {
+        let inv = appData.investments[index];
+        let name = prompt('বিনিয়োগকারীর নাম:', inv.name); if(name === null) return;
+        let amount = prompt('বিনিয়োগের পরিমাণ (৳):', inv.amount); if(amount === null) return;
+        let share = prompt('শেয়ার শতাংশ (%):', inv.share); if(share === null) return;
+
+        appData.investments[index] = { ...inv, name: name.trim() || inv.name, amount: Number(amount) || inv.amount, share: Number(share) || inv.share };
+        saveData();
+    }
+
+    function deleteInvestment(index) {
+        if(confirm('বিনিয়োগকারীর তথ্য মুছে ফেলতে চান?')) { appData.investments.splice(index, 1); saveData(); }
+    }
+
+    function addCatalogProduct(e) {
+        e.preventDefault();
+        let name = document.getElementById('catName').value;
+        if(!appData.catalog) appData.catalog = [];
+        if(!appData.catalog.includes(name)) { appData.catalog.push(name); saveData(); e.target.reset(); }
+    }
+
+    function editCatalog(index) {
+        let newName = prompt('নতুন পণ্যের নাম:', appData.catalog[index]);
+        if(newName) { appData.catalog[index] = newName; saveData(); }
+    }
+
+    function addExpenseCategory(e) {
+        e.preventDefault();
+        let name = document.getElementById('newExpCat').value;
+        if(!appData.expCategories) appData.expCategories = [];
+        if(!appData.expCategories.includes(name)) { appData.expCategories.push(name); saveData(); e.target.reset(); }
+    }
+
+    function addEmployee(e) {
+        e.preventDefault();
+        if(!appData.employees) appData.employees = [];
+        appData.employees.push({
+            nid: document.getElementById('empNid').value,
+            name: document.getElementById('empName').value,
+            phone: document.getElementById('empPhone').value,
+            age: document.getElementById('empAge').value,
+            role: document.getElementById('empRole').value,
+            salary: Number(document.getElementById('empSalary').value),
+            pass: document.getElementById('empPass').value || '1234',
+            approved: true
+        });
+        saveData(); e.target.reset(); alert('কর্মচারী যুক্ত হয়েছে!');
+    }
+
+    function editEmployee(index) {
+        let emp = appData.employees[index];
+        let nid = prompt('NID নম্বর:', emp.nid) || emp.nid;
+        let name = prompt('নাম:', emp.name) || emp.name;
+        let phone = prompt('মোবাইল:', emp.phone) || emp.phone;
+        let age = prompt('বয়স:', emp.age) || emp.age;
+        let role = prompt('পদবি:', emp.role) || emp.role;
+        let salary = prompt('বেতন:', emp.salary) || emp.salary;
+
+        appData.employees[index] = { ...emp, nid, name, phone, age, role, salary: Number(salary) };
+        saveData();
+    }
+
+    function addPurchase(e) {
+        e.preventDefault();
+        let name = document.getElementById('pNameSelect').value;
+        let qty = Number(document.getElementById('pQty').value);
+        let price = Number(document.getElementById('pPrice').value);
+        let date = document.getElementById('pDate').value;
+        if(!appData.motherStock) appData.motherStock = [];
+        appData.motherStock.push({name, qty, price, date});
+        saveData(); e.target.reset(); alert('স্টকে যুক্ত হয়েছে!');
+    }
+
+    function addSale(e) {
+        e.preventDefault();
+        let name = document.getElementById('sProduct').value;
+        let qty = Number(document.getElementById('sQty').value);
+        let price = Number(document.getElementById('sPrice').value);
+        let customer = document.getElementById('sCustomer').value;
+        let date = document.getElementById('sDate').value;
+
+        if((appData.currentStock[name] || 0) < qty) return alert('পর্যাপ্ত স্টক নেই!');
+
+        let total = qty * price;
+        if(!appData.sales) appData.sales = [];
+        appData.sales.push({name, qty, price, total, customer, date});
+
+        document.getElementById('invCompany').innerText = appData.company;
+        document.getElementById('invDate').innerText = date;
+        document.getElementById('invCustomer').innerText = customer;
+        document.getElementById('invProd').innerText = name;
+        document.getElementById('invQty').innerText = qty;
+        document.getElementById('invPrice').innerText = '৳ ' + price;
+        document.getElementById('invTotal').innerText = '৳ ' + total;
+        document.getElementById('printableInvoice').style.display = 'block';
+
+        saveData(); e.target.reset();
+    }
+
+    function addExpense(e) {
+        e.preventDefault();
+        if(!appData.expenses) appData.expenses = [];
+        appData.expenses.push({
+            category: document.getElementById('expCategory').value,
+            amount: Number(document.getElementById('expAmount').value),
+            date: document.getElementById('expDate').value
+        });
+        saveData(); e.target.reset(); alert('খরচ সেভ হয়েছে!');
+    }
+
+    function generateReport() {
+        let yr = document.getElementById('reportYear').value;
+        let pTotal = (appData.motherStock || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + (b.qty*b.price), 0);
+        let sTotal = (appData.sales || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.total, 0);
+        let rTotal = (appData.returns || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.total, 0);
+        let eTotal = (appData.expenses || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.amount, 0);
+        let net = (sTotal - rTotal) - pTotal - eTotal;
+
+        document.getElementById('rPurchase').innerText = '৳ ' + pTotal;
+        document.getElementById('rSales').innerText = '৳ ' + sTotal;
+        document.getElementById('rReturn').innerText = '৳ ' + rTotal;
+        document.getElementById('rExpense').innerText = '৳ ' + eTotal;
+        document.getElementById('rNetProfit').innerText = '৳ ' + rNetProfit;
+        document.getElementById('rNetProfit').style.color = net >= 0 ? 'green' : 'red';
+    }
+
+    function saveSettings() {
+        let name = document.getElementById('compNameInput').value.trim();
+        let email = document.getElementById('adminEmailInput').value.trim();
+        let newAdmin = document.getElementById('newAdminPass').value.trim();
+        if(name !== "") { appData.company = name; }
+        if(email !== "") { appData.adminEmail = email; }
+        if(newAdmin !== "") { appData.adminPass = newAdmin; }
+        saveData(); 
+        alert('সেটিংস সফলভাবে সেভ হয়েছে!');
+    }
+</script>
+</body>
+</html>
