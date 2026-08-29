@@ -465,7 +465,6 @@
         if(stored) {
             try { 
                 appData = JSON.parse(stored);
-                // Force sync pass and email if they were missing or corrupted
                 if(!appData.adminPass) appData.adminPass = '1234';
                 if(!appData.adminEmail) appData.adminEmail = 'urdu1844@gmail.com';
             } catch(e) { 
@@ -979,19 +978,24 @@
         saveData(); e.target.reset(); alert('খরচ সেভ হয়েছে!');
     }
 
+    /* --- FIXED REPORT GENERATION FUNCTION --- */
     function generateReport() {
         let yr = document.getElementById('reportYear').value;
         let pTotal = (appData.motherStock || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + (b.qty*b.price), 0);
         let sTotal = (appData.sales || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.total, 0);
         let rTotal = (appData.returns || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.total, 0);
         let eTotal = (appData.expenses || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.amount, 0);
+        
+        // নিট লাভের সঠিক হিসাব
         let net = (sTotal - rTotal) - pTotal - eTotal;
 
         document.getElementById('rPurchase').innerText = '৳ ' + pTotal;
         document.getElementById('rSales').innerText = '৳ ' + sTotal;
         document.getElementById('rReturn').innerText = '৳ ' + rTotal;
         document.getElementById('rExpense').innerText = '৳ ' + eTotal;
-        document.getElementById('rNetProfit').innerText = '৳ ' + rNetProfit;
+        
+        // সঠিক 'net' ভ্যারিয়েবলটি বসানো হয়েছে
+        document.getElementById('rNetProfit').innerText = '৳ ' + net;
         document.getElementById('rNetProfit').style.color = net >= 0 ? 'green' : 'red';
     }
 
