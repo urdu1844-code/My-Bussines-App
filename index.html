@@ -37,7 +37,7 @@
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           window.currentUser = user;
-          // লোড ডাটা শেষ না হওয়া পর্যন্ত রিয়েলটাইম লিসেনার কাজ করবে
+          document.getElementById('loginOverlay').style.display = 'none';
           listenToCloudData(user);
         } else {
           window.currentUser = null;
@@ -55,7 +55,6 @@
                   appData = defaultData;
               }
               
-              // নিশ্চিত করুন সঠিক রোল সেট হচ্ছে
               let adminEmail = appData.adminEmail || 'urdu1844@gmail.com';
               let role = (user.email && user.email.toLowerCase() === adminEmail.toLowerCase()) ? 'admin' : 'staff';
               
@@ -168,7 +167,7 @@
         <div class="bismillah-text">بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
         <h2 style="margin-top:10px; text-align:center; color:#0f172a;" id="loginTitle">লগইন করুন</h2>
         
-        <div id="loginForm">
+        <form id="loginForm" onsubmit="checkLogin(event)">
             <div class="form-group">
                 <label>ইমেইল</label>
                 <input type="email" id="loginEmail" placeholder="যেমন: urdu1844@gmail.com" required>
@@ -177,35 +176,35 @@
                 <label>পাসওয়ার্ড</label>
                 <input type="password" id="loginPass" placeholder="পাসওয়ার্ড দিন" required>
             </div>
-            <button onclick="checkLogin()" class="btn-submit">প্রবেশ করুন</button>
+            <button type="submit" class="btn-submit">প্রবেশ করুন</button>
             
             <div style="margin-top:15px; font-size:13px; text-align:center;">
                 <span id="staffRegText">অ্যাকাউন্ট নেই? <a href="#" onclick="toggleAuthMode('register')">আবেদন করুন</a></span>
                 <br><br>
                 <a href="#" onclick="toggleAuthMode('forgot')" style="color:#ef4444; text-decoration:none;">পাসওয়ার্ড ভুলে গেছেন?</a>
             </div>
-        </div>
+        </form>
 
-        <div id="registerForm" style="display:none;">
+        <form id="registerForm" style="display:none;" onsubmit="registerStaff(event)">
             <div class="form-group"><label>ইমেইল</label><input type="email" id="regEmail" required></div>
             <div class="form-group"><label>পাসওয়ার্ড (নূন্যতম ৬ অক্ষর)</label><input type="password" id="regPass" required></div>
-            <button onclick="registerStaff()" class="btn-submit">আবেদন জমা দিন</button>
+            <button type="submit" class="btn-submit">আবেদন জমা দিন</button>
             <p style="text-align:center; margin-top:15px; font-size:13px;">
                 অ্যাকাউন্ট আছে? <a href="#" onclick="toggleAuthMode('login')">লগইন করুন</a>
             </p>
-        </div>
+        </form>
 
-        <div id="forgotForm" style="display:none;">
+        <form id="forgotForm" style="display:none;" onsubmit="sendResetEmail(event)">
             <p style="font-size:13px; color:#64748b;">আপনার নিবন্ধিত ইমেইলে পাসওয়ার্ড রিসেট লিংক পাঠানো হবে।</p>
             <div class="form-group">
                 <label>ইমেইল</label>
-                <input type="email" id="forgotEmail" placeholder="ইমেইল দিন">
+                <input type="email" id="forgotEmail" placeholder="ইমেইল দিন" required>
             </div>
-            <button onclick="sendResetEmail()" class="btn-submit">রিসেট লিংক পাঠান</button>
+            <button type="submit" class="btn-submit">রিসেট লিংক পাঠান</button>
             <p style="text-align:center; margin-top:15px; font-size:13px;">
                 <a href="#" onclick="toggleAuthMode('login')">লগইনে ফিরে যান</a>
             </p>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -572,25 +571,29 @@
         else document.getElementById('loginTitle').innerText = 'লগইন করুন';
     }
 
-    function sendResetEmail() {
-        let email = document.getElementById('forgotEmail').value.trim();
-        if(!email) return alert('আপনার ইমেইল দিন!');
-        window.firebaseResetPass(email);
-    }
-
-    function registerStaff() {
-        let email = document.getElementById('regEmail').value.trim();
-        let pass = document.getElementById('regPass').value.trim();
-        if(!email || !pass) return alert('ইমেইল এবং পাসওয়ার্ড বাধ্যতামূলক!');
-        window.firebaseRegister(email, pass);
-    }
-
-    function checkLogin() {
+    // --- Auth Functions (Update with event handling) ---
+    window.checkLogin = async function(event) {
+        if (event) event.preventDefault();
         let email = document.getElementById('loginEmail').value.trim();
         let pass = document.getElementById('loginPass').value.trim();
         if(!email || !pass) return alert('ইমেইল ও পাসওয়ার্ড প্রদান করুন!');
-        window.firebaseLogin(email, pass);
-    }
+        await window.firebaseLogin(email, pass);
+    };
+
+    window.registerStaff = async function(event) {
+        if (event) event.preventDefault();
+        let email = document.getElementById('regEmail').value.trim();
+        let pass = document.getElementById('regPass').value.trim();
+        if(!email || !pass) return alert('ইমেইল এবং পাসওয়ার্ড বাধ্যতামূলক!');
+        await window.firebaseRegister(email, pass);
+    };
+
+    window.sendResetEmail = async function(event) {
+        if (event) event.preventDefault();
+        let email = document.getElementById('forgotEmail').value.trim();
+        if(!email) return alert('আপনার ইমেইল দিন!');
+        await window.firebaseResetPass(email);
+    };
 
     function initUser(role) {
         currentUserRole = role;
