@@ -4,6 +4,111 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ব্যবসায়িক ম্যানেজমেন্ট সিস্টেম</title>
+
+    <!-- Firebase SDK (v10.8.0 Integration) -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+      import { 
+        getAuth, 
+        signInWithEmailAndPassword, 
+        createUserWithEmailAndPassword, 
+        sendPasswordResetEmail, 
+        signOut, 
+        onAuthStateChanged 
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyD2zW3uA6RQm1fKZr8SYH0qTkTCEY7enc0",
+        authDomain: "fish-8d553.firebaseapp.com",
+        databaseURL: "https://fish-8d553-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "fish-8d553",
+        storageBucket: "fish-8d553.firebasestorage.app",
+        messagingSenderId: "935487155977",
+        appId: "1:935487155977:web:7a0c65bb39635f1bce2dd8",
+        measurementId: "G-3MJ3VDS5TS"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      const auth = getAuth(app);
+
+      // Auth State Observer
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          window.currentUser = user;
+          let role = user.email === (appData.adminEmail || 'urdu1844@gmail.com') ? 'admin' : 'staff';
+          initUser(role);
+          loadCloudData();
+        } else {
+          window.currentUser = null;
+          document.getElementById('loginOverlay').style.display = 'flex';
+        }
+      });
+
+      // Firebase Cloud Data Management
+      window.loadCloudData = async function() {
+          if (!auth.currentUser) return;
+          try {
+              const dbRef = ref(db, 'businesses/mainData');
+              const snapshot = await get(dbRef);
+              if (snapshot.exists()) {
+                  appData = snapshot.val();
+              } else {
+                  appData = defaultData;
+              }
+              recalculateStock();
+              refreshUI();
+          } catch (e) {
+              console.error("ডাটা লোড করতে সমস্যা হয়েছে: ", e);
+          }
+      };
+
+      window.saveCloudData = async function() {
+          if (!auth.currentUser) return;
+          recalculateStock();
+          try {
+              await set(ref(db, 'businesses/mainData'), appData);
+              refreshUI();
+          } catch (e) {
+              console.error("ডাটা সেভ করতে সমস্যা হয়েছে: ", e);
+          }
+      };
+
+      // Real Firebase Authentication Functions
+      window.firebaseLogin = async function(email, password) {
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+          alert("লগইন ব্যর্থ হয়েছে: " + error.message);
+        }
+      };
+
+      window.firebaseRegister = async function(email, password) {
+        try {
+          await createUserWithEmailAndPassword(auth, email, password);
+          alert("অ্যাকাউন্ট তৈরি সফল হয়েছে! এবার লগইন করুন।");
+          toggleAuthMode('login');
+        } catch (error) {
+          alert("রেজিস্ট্রেশন ত্রুটি: " + error.message);
+        }
+      };
+
+      window.firebaseResetPass = async function(email) {
+        try {
+          await sendPasswordResetEmail(auth, email);
+          alert("আপনার ইমেইলে পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে!");
+          toggleAuthMode('login');
+        } catch (error) {
+          alert("ত্রুটি: " + error.message);
+        }
+      };
+
+      window.firebaseLogout = async function() {
+        await signOut(auth);
+      };
+    </script>
+
     <style>
         :root { --primary: #1e293b; --secondary: #10b981; --bg: #f8fafc; --sidebar: #0f172a; --danger: #ef4444; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: var(--bg); color: #333; display: flex; height: 100vh; overflow: hidden; }
@@ -41,7 +146,6 @@
         th { background: #f1f5f9; }
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
         .summary-box { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid var(--secondary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-
         .clear-float { clear: both; }
 
         @media print {
@@ -63,36 +167,25 @@
         
         <div id="loginForm">
             <div class="form-group">
-                <label>ইউজার টাইপ</label>
-                <select id="loginRole" onchange="toggleLoginInputs()">
-                    <option value="admin">অ্যাডমিন (Admin)</option>
-                    <option value="staff">স্টাফ (Staff)</option>
-                </select>
-            </div>
-            <div class="form-group" id="staffNidGroup" style="display:none;">
-                <label>এনআইডি (NID)</label>
-                <input type="text" id="loginNid" placeholder="আপনার NID দিন">
+                <label>ইমেইল</label>
+                <input type="email" id="loginEmail" placeholder="যেমন: urdu1844@gmail.com" required>
             </div>
             <div class="form-group">
                 <label>পাসওয়ার্ড</label>
-                <input type="password" id="loginPass" placeholder="পাসওয়ার্ড দিন">
+                <input type="password" id="loginPass" placeholder="পাসওয়ার্ড দিন" required>
             </div>
             <button onclick="checkLogin()" class="btn-submit">প্রবেশ করুন</button>
             
             <div style="margin-top:15px; font-size:13px; text-align:center;">
-                <span id="staffRegText">স্টাফ অ্যাকাউন্ট নেই? <a href="#" onclick="toggleAuthMode('register')">আবেদন করুন</a></span>
+                <span id="staffRegText">অ্যাকাউন্ট নেই? <a href="#" onclick="toggleAuthMode('register')">আবেদন করুন</a></span>
                 <br><br>
                 <a href="#" onclick="toggleAuthMode('forgot')" style="color:#ef4444; text-decoration:none;">পাসওয়ার্ড ভুলে গেছেন?</a>
-                <br><br>
-                <a href="#" onclick="resetAllAppSystem()" style="color:#64748b; font-size:11px; text-decoration:underline;">লগইন সমস্যা হলে সিস্টেম রিসেট করুন</a>
             </div>
         </div>
 
         <div id="registerForm" style="display:none;">
-            <div class="form-group"><label>নাম</label><input type="text" id="regName" required></div>
-            <div class="form-group"><label>এনআইডি (NID)</label><input type="text" id="regNid" required></div>
-            <div class="form-group"><label>মোবাইল</label><input type="text" id="regPhone" required></div>
-            <div class="form-group"><label>পাসওয়ার্ড</label><input type="password" id="regPass" required></div>
+            <div class="form-group"><label>ইমেইল</label><input type="email" id="regEmail" required></div>
+            <div class="form-group"><label>পাসওয়ার্ড (নূন্যতম ৬ অক্ষর)</label><input type="password" id="regPass" required></div>
             <button onclick="registerStaff()" class="btn-submit">আবেদন জমা দিন</button>
             <p style="text-align:center; margin-top:15px; font-size:13px;">
                 অ্যাকাউন্ট আছে? <a href="#" onclick="toggleAuthMode('login')">লগইন করুন</a>
@@ -100,18 +193,12 @@
         </div>
 
         <div id="forgotForm" style="display:none;">
-            <p style="font-size:13px; color:#64748b;">অ্যাডমিন পাসওয়ার্ড রিসেট করতে নিবন্ধিত ইমেইলে ভেরিফিকেশন কোড পাঠানো হবে।</p>
+            <p style="font-size:13px; color:#64748b;">আপনার নিবন্ধিত ইমেইলে পাসওয়ার্ড রিসেট লিংক পাঠানো হবে।</p>
             <div class="form-group">
-                <label>অ্যাডমিন ইমেইল</label>
-                <input type="email" id="forgotEmail" value="urdu1844@gmail.com" placeholder="urdu1844@gmail.com">
+                <label>ইমেইল</label>
+                <input type="email" id="forgotEmail" placeholder="ইমেইল দিন">
             </div>
-            <button onclick="sendAdminOtp()" class="btn-submit">কোড পাঠান</button>
-            
-            <div id="otpSection" style="display:none; margin-top:15px;">
-                <div class="form-group"><label>৬ ডিজিটের OTP কোড</label><input type="text" id="otpInput"></div>
-                <div class="form-group"><label>নতুন পাসওয়ার্ড</label><input type="password" id="resetNewPass"></div>
-                <button onclick="verifyAndResetAdminPass()" class="btn-submit" style="background:#3b82f6;">পাসওয়ার্ড পরিবর্তন করুন</button>
-            </div>
+            <button onclick="sendAdminOtp()" class="btn-submit">রিসেট লিংক পাঠান</button>
             <p style="text-align:center; margin-top:15px; font-size:13px;">
                 <a href="#" onclick="toggleAuthMode('login')">লগইনে ফিরে যান</a>
             </p>
@@ -319,14 +406,13 @@
                     <div class="form-group"><label>বয়স</label><input type="number" id="empAge" required></div>
                     <div class="form-group"><label>পদবি</label><input type="text" id="empRole" required></div>
                     <div class="form-group"><label>মাসিক বেতন (৳)</label><input type="number" id="empSalary" required></div>
-                    <div class="form-group"><label>পাসওয়ার্ড</label><input type="text" id="empPass" value="1234" required></div>
                     <button type="submit" class="btn-submit">কর্মচারী সেভ করুন</button>
                 </form>
             </div>
             <div class="card">
-                <h4>কর্মচারীদের তালিকা ও পাসওয়ার্ড পুনর্বহাল</h4>
+                <h4>কর্মচারীদের তালিকা</h4>
                 <table>
-                    <thead><tr><th>NID</th><th>নাম</th><th>মোবাইল</th><th>বয়স</th><th>পদবি</th><th>বেতন</th><th>স্ট্যাটাস</th><th class="action-col admin-only">অ্যাকশন</th></tr></thead>
+                    <thead><tr><th>NID</th><th>নাম</th><th>মোবাইল</th><th>বয়স</th><th>পদবি</th><th>বেতন</th><th class="action-col admin-only">অ্যাকশন</th></tr></thead>
                     <tbody id="empTable"></tbody>
                 </table>
             </div>
@@ -424,8 +510,7 @@
             <div class="card">
                 <h3>সেটিংস</h3>
                 <div class="form-group"><label>কোম্পানির নাম</label><input type="text" id="compNameInput"></div>
-                <div class="form-group"><label>অ্যাডমিন রিকভারি ইমেইল</label><input type="email" id="adminEmailInput" value="urdu1844@gmail.com" placeholder="urdu1844@gmail.com"></div>
-                <div class="form-group"><label>নতুন অ্যাডমিন পাসওয়ার্ড</label><input type="password" id="newAdminPass" placeholder="নতুন পাসওয়ার্ড না দিলে ফাঁকা রাখুন"></div>
+                <div class="form-group"><label>অ্যাডমিন ইমেইল</label><input type="email" id="adminEmailInput" value="urdu1844@gmail.com"></div>
                 <button onclick="saveSettings()" class="btn-submit">সংরক্ষণ করুন</button>
             </div>
         </div>
@@ -435,7 +520,6 @@
 <script>
     const defaultData = {
         company: 'আমার ব্যবসা প্রতিষ্ঠান',
-        adminPass: '1234',
         adminEmail: 'urdu1844@gmail.com',
         catalog: ['রুই মাছ', 'কাতলা মাছ'],
         expCategories: ['পরিবহন খরচ', 'দোকান ভাড়া'],
@@ -450,7 +534,6 @@
 
     let appData = defaultData;
     let currentUserRole = 'staff';
-    let generatedOTP = null;
 
     function recalculateStock() {
         let stock = {};
@@ -460,40 +543,14 @@
         appData.currentStock = stock;
     }
 
-    function loadLocalData() {
-        const stored = localStorage.getItem('fishBizData');
-        if(stored) {
-            try { 
-                appData = JSON.parse(stored);
-                if(!appData.adminPass) appData.adminPass = '1234';
-                if(!appData.adminEmail) appData.adminEmail = 'urdu1844@gmail.com';
-            } catch(e) { 
-                appData = defaultData; 
-            }
-        } else {
-            appData = defaultData;
-        }
-        recalculateStock();
-        refreshUI();
-    }
-
     function saveData() {
         recalculateStock();
-        localStorage.setItem('fishBizData', JSON.stringify(appData));
-        refreshUI();
-    }
-
-    function resetAllAppSystem() {
-        if(confirm('লগইন সমস্যা সমাধানের জন্য ব্রাউজারের সংরক্ষিত পুরোনো পাসওয়ার্ড রিসেট করা হবে। আপনি কি নিশ্চিত?')) {
-            localStorage.removeItem('fishBizData');
-            appData = defaultData;
-            saveData();
-            alert('সিস্টেম রিসেট করা হয়েছে! এখন পাসওয়ার্ড "1234" দিয়ে লগইন করুন।');
-            location.reload();
+        if (window.saveCloudData) {
+            window.saveCloudData();
+        } else {
+            refreshUI();
         }
     }
-
-    window.onload = function() { loadLocalData(); };
 
     function printSection(sectionId) {
         let printElement = document.getElementById(sectionId);
@@ -502,85 +559,36 @@
         printElement.classList.remove('print-area');
     }
 
-    function toggleLoginInputs() {
-        let role = document.getElementById('loginRole').value;
-        document.getElementById('staffNidGroup').style.display = (role === 'staff') ? 'block' : 'none';
-    }
-
     function toggleAuthMode(mode) {
         document.getElementById('loginForm').style.display = (mode === 'login') ? 'block' : 'none';
         document.getElementById('registerForm').style.display = (mode === 'register') ? 'block' : 'none';
         document.getElementById('forgotForm').style.display = (mode === 'forgot') ? 'block' : 'none';
         
-        if(mode === 'register') document.getElementById('loginTitle').innerText = 'স্টাফ আবেদন';
+        if(mode === 'register') document.getElementById('loginTitle').innerText = 'স্টাফ রেজিস্ট্রেশন';
         else if(mode === 'forgot') {
             document.getElementById('loginTitle').innerText = 'পাসওয়ার্ড রিসেট';
-            document.getElementById('forgotEmail').value = appData.adminEmail || 'urdu1844@gmail.com';
         }
         else document.getElementById('loginTitle').innerText = 'লগইন করুন';
     }
 
     function sendAdminOtp() {
-        let email = document.getElementById('forgotEmail').value.trim().toLowerCase();
-        let targetEmail = (appData.adminEmail || 'urdu1844@gmail.com').toLowerCase();
-
-        if(!email || email !== targetEmail) {
-            return alert('সঠিক নিবন্ধিত অ্যাডমিন ইমেইল দিন! (আপনার ইমেইল: ' + targetEmail + ')');
-        }
-        generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-        alert('আপনার ইমেইলে (' + email + ') একটি OTP কোড পাঠানো হয়েছে: ' + generatedOTP);
-        document.getElementById('otpSection').style.display = 'block';
-    }
-
-    function verifyAndResetAdminPass() {
-        let inputOtp = document.getElementById('otpInput').value.trim();
-        let newPass = document.getElementById('resetNewPass').value.trim();
-
-        if(inputOtp !== generatedOTP) return alert('ভুল OTP কোড!');
-        if(!newPass) return alert('নতুন পাসওয়ার্ড দিন!');
-
-        appData.adminPass = newPass;
-        saveData();
-        alert('অ্যাডমিন পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে! এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।');
-        toggleAuthMode('login');
+        let email = document.getElementById('forgotEmail').value.trim();
+        if(!email) return alert('আপনার ইমেইল দিন!');
+        window.firebaseResetPass(email);
     }
 
     function registerStaff() {
-        let nid = document.getElementById('regNid').value;
-        let name = document.getElementById('regName').value;
-        let phone = document.getElementById('regPhone').value;
-        let pass = document.getElementById('regPass').value;
-
-        if(!nid || !pass) return alert('NID এবং পাসওয়ার্ড বাধ্যতামূলক!');
-
-        let exists = (appData.employees || []).find(e => e.nid === nid);
-        if(exists) return alert('এই NID আগেই ব্যবহার করা হয়েছে!');
-
-        if(!appData.employees) appData.employees = [];
-        appData.employees.push({ nid, name, phone, age: '-', role: 'Staff', salary: 0, pass, approved: false });
-        saveData();
-        alert('আবেদন জমা হয়েছে! অ্যাডমিনের অনুমোদনের অপেক্ষা করুন।');
-        toggleAuthMode('login');
+        let email = document.getElementById('regEmail').value.trim();
+        let pass = document.getElementById('regPass').value.trim();
+        if(!email || !pass) return alert('ইমেইল এবং পাসওয়ার্ড বাধ্যতামূলক!');
+        window.firebaseRegister(email, pass);
     }
 
     function checkLogin() {
-        let role = document.getElementById('loginRole').value;
+        let email = document.getElementById('loginEmail').value.trim();
         let pass = document.getElementById('loginPass').value.trim();
-
-        if(role === 'admin') {
-            let currentAdminPass = appData.adminPass || '1234';
-            if(pass === currentAdminPass) {
-                initUser('admin');
-            } else {
-                alert('ভুল পাসওয়ার্ড! ডিফল্ট পাসওয়ার্ড: 1234');
-            }
-        } else {
-            let nid = document.getElementById('loginNid').value.trim();
-            let emp = (appData.employees || []).find(e => e.nid === nid && e.pass === pass);
-            if(!emp) return alert('ভুল NID বা পাসওয়ার্ড!');
-            if(!emp.approved) return alert('আপনার অ্যাকাউন্টটি এখনও অ্যাডমিন কর্তৃক অনুমোদিত নয়!');
-            initUser('staff');
-        }
+        if(!email || !pass) return alert('ইমেইল ও পাসওয়ার্ড প্রদান করুন!');
+        window.firebaseLogin(email, pass);
     }
 
     function initUser(role) {
@@ -599,8 +607,7 @@
     }
 
     function logout() { 
-        document.getElementById('loginOverlay').style.display = 'flex';
-        document.getElementById('loginPass').value = '';
+        window.firebaseLogout();
     }
 
     function switchTab(tabId, btn) {
@@ -658,15 +665,13 @@
         // Catalog Table
         let catHtml = '';
         (appData.catalog || []).forEach((item, index) => {
-            catHtml += `<tr><td>${item}</td><td class="action-col admin-only"><button onclick="editCatalog(${index})" class="btn-edit">এডিট</button></td></tr>`;
+            catHtml += `<tr><td>${item}</td><td class="action-col admin-only"><button onclick="editCatalog(${index})" class="btn-edit">এডিট</button><button onclick="deleteCatalog(${index})" class="btn-delete">ডিলিট</button></td></tr>`;
         });
         document.getElementById('catalogTable').innerHTML = catHtml;
 
         // Employee Table
         let empHtml = '';
         (appData.employees || []).forEach((item, index) => {
-            let status = item.approved ? '<span style="color:green;font-weight:bold;">অনুমোদিত</span>' : '<span style="color:red;font-weight:bold;">পেন্ডিং</span>';
-            let approveBtn = `<button onclick="approveEmployee(${index})" class="btn-approve">${item.approved ? 'পুনরায় অনুমোদন/পাসওয়ার্ড রিসেট' : 'অনুমোদন দিন'}</button> `;
             empHtml += `<tr>
                 <td>${item.nid || '-'}</td>
                 <td>${item.name}</td>
@@ -674,8 +679,10 @@
                 <td>${item.age}</td>
                 <td>${item.role}</td>
                 <td>৳ ${item.salary}</td>
-                <td>${status}</td>
-                <td class="action-col admin-only">${approveBtn}<button onclick="editEmployee(${index})" class="btn-edit">এডিট</button></td>
+                <td class="action-col admin-only">
+                    <button onclick="editEmployee(${index})" class="btn-edit">এডিট</button>
+                    <button onclick="deleteEmployee(${index})" class="btn-delete">ডিলিট</button>
+                </td>
             </tr>`;
         });
         document.getElementById('empTable').innerHTML = empHtml;
@@ -771,15 +778,6 @@
     }
 
     // --- Actions ---
-    function approveEmployee(index) {
-        let newPass = prompt('এই কর্মচারীর জন্য পাসওয়ার্ড সেট করুন:', appData.employees[index].pass || '1234');
-        if(newPass === null) return;
-        appData.employees[index].pass = newPass;
-        appData.employees[index].approved = true;
-        saveData(); 
-        alert('কর্মচারী অনুমোদিত এবং পাসওয়ার্ড সেট করা হয়েছে!');
-    }
-
     function editPurchase(index) {
         let item = appData.motherStock[index];
         let qty = prompt('নতুন পরিমাণ:', item.qty); if(qty === null) return;
@@ -894,6 +892,13 @@
         if(newName) { appData.catalog[index] = newName; saveData(); }
     }
 
+    function deleteCatalog(index) {
+        if(confirm('আপনি কি এই পণ্যটি তালিকা থেকে মুছে ফেলতে চান?')) {
+            appData.catalog.splice(index, 1);
+            saveData();
+        }
+    }
+
     function addExpenseCategory(e) {
         e.preventDefault();
         let name = document.getElementById('newExpCat').value;
@@ -910,9 +915,7 @@
             phone: document.getElementById('empPhone').value,
             age: document.getElementById('empAge').value,
             role: document.getElementById('empRole').value,
-            salary: Number(document.getElementById('empSalary').value),
-            pass: document.getElementById('empPass').value || '1234',
-            approved: true
+            salary: Number(document.getElementById('empSalary').value)
         });
         saveData(); e.target.reset(); alert('কর্মচারী যুক্ত হয়েছে!');
     }
@@ -928,6 +931,13 @@
 
         appData.employees[index] = { ...emp, nid, name, phone, age, role, salary: Number(salary) };
         saveData();
+    }
+
+    function deleteEmployee(index) {
+        if(confirm('আপনি কি এই কর্মচারীর তথ্য মুছে ফেলতে চান?')) {
+            appData.employees.splice(index, 1);
+            saveData();
+        }
     }
 
     function addPurchase(e) {
@@ -978,7 +988,6 @@
         saveData(); e.target.reset(); alert('খরচ সেভ হয়েছে!');
     }
 
-    /* --- FIXED REPORT GENERATION FUNCTION --- */
     function generateReport() {
         let yr = document.getElementById('reportYear').value;
         let pTotal = (appData.motherStock || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + (b.qty*b.price), 0);
@@ -986,7 +995,6 @@
         let rTotal = (appData.returns || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.total, 0);
         let eTotal = (appData.expenses || []).filter(i => i.date && i.date.startsWith(yr)).reduce((a,b) => a + b.amount, 0);
         
-        // নিট লাভের সঠিক হিসাব
         let net = (sTotal - rTotal) - pTotal - eTotal;
 
         document.getElementById('rPurchase').innerText = '৳ ' + pTotal;
@@ -994,7 +1002,6 @@
         document.getElementById('rReturn').innerText = '৳ ' + rTotal;
         document.getElementById('rExpense').innerText = '৳ ' + eTotal;
         
-        // সঠিক 'net' ভ্যারিয়েবলটি বসানো হয়েছে
         document.getElementById('rNetProfit').innerText = '৳ ' + net;
         document.getElementById('rNetProfit').style.color = net >= 0 ? 'green' : 'red';
     }
@@ -1002,10 +1009,8 @@
     function saveSettings() {
         let name = document.getElementById('compNameInput').value.trim();
         let email = document.getElementById('adminEmailInput').value.trim();
-        let newAdmin = document.getElementById('newAdminPass').value.trim();
         if(name !== "") { appData.company = name; }
         if(email !== "") { appData.adminEmail = email; }
-        if(newAdmin !== "") { appData.adminPass = newAdmin; }
         saveData(); 
         alert('সেটিংস সফলভাবে সেভ হয়েছে!');
     }
