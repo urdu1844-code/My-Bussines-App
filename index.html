@@ -8,7 +8,7 @@
     <!-- Firebase SDK (v10.8.0 Integration) -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-      import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+      import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
       import { 
         getAuth, 
         signInWithEmailAndPassword, 
@@ -34,34 +34,37 @@
       const auth = getAuth(app);
 
       // Auth State Observer
-      onAuthStateChanged(auth, (user) => {
+      onAuthStateChanged(auth, async (user) => {
         if (user) {
           window.currentUser = user;
-          let role = user.email === (appData.adminEmail || 'urdu1844@gmail.com') ? 'admin' : 'staff';
-          initUser(role);
-          loadCloudData();
+          // লোড ডাটা শেষ না হওয়া পর্যন্ত রিয়েলটাইম লিসেনার কাজ করবে
+          listenToCloudData(user);
         } else {
           window.currentUser = null;
           document.getElementById('loginOverlay').style.display = 'flex';
         }
       });
 
-      // Firebase Cloud Data Management
-      window.loadCloudData = async function() {
-          if (!auth.currentUser) return;
-          try {
-              const dbRef = ref(db, 'businesses/mainData');
-              const snapshot = await get(dbRef);
+      // Real-time Cloud Data Listener
+      window.listenToCloudData = function(user) {
+          const dbRef = ref(db, 'businesses/mainData');
+          onValue(dbRef, (snapshot) => {
               if (snapshot.exists()) {
                   appData = snapshot.val();
               } else {
                   appData = defaultData;
               }
+              
+              // নিশ্চিত করুন সঠিক রোল সেট হচ্ছে
+              let adminEmail = appData.adminEmail || 'urdu1844@gmail.com';
+              let role = (user.email && user.email.toLowerCase() === adminEmail.toLowerCase()) ? 'admin' : 'staff';
+              
+              initUser(role);
               recalculateStock();
               refreshUI();
-          } catch (e) {
-              console.error("ডাটা লোড করতে সমস্যা হয়েছে: ", e);
-          }
+          }, (e) => {
+              console.error("ডাটা লোড করতে সমস্যা হয়েছে: ", e);
+          });
       };
 
       window.saveCloudData = async function() {
@@ -69,9 +72,9 @@
           recalculateStock();
           try {
               await set(ref(db, 'businesses/mainData'), appData);
-              refreshUI();
           } catch (e) {
-              console.error("ডাটা সেভ করতে সমস্যা হয়েছে: ", e);
+              console.error("ডাটা সেভ করতে সমস্যা হয়েছে: ", e);
+              alert("ডাটা সেভ করতে ব্যর্থ হয়েছে!");
           }
       };
 
@@ -198,7 +201,7 @@
                 <label>ইমেইল</label>
                 <input type="email" id="forgotEmail" placeholder="ইমেইল দিন">
             </div>
-            <button onclick="sendAdminOtp()" class="btn-submit">রিসেট লিংক পাঠান</button>
+            <button onclick="sendResetEmail()" class="btn-submit">রিসেট লিংক পাঠান</button>
             <p style="text-align:center; margin-top:15px; font-size:13px;">
                 <a href="#" onclick="toggleAuthMode('login')">লগইনে ফিরে যান</a>
             </p>
@@ -565,13 +568,11 @@
         document.getElementById('forgotForm').style.display = (mode === 'forgot') ? 'block' : 'none';
         
         if(mode === 'register') document.getElementById('loginTitle').innerText = 'স্টাফ রেজিস্ট্রেশন';
-        else if(mode === 'forgot') {
-            document.getElementById('loginTitle').innerText = 'পাসওয়ার্ড রিসেট';
-        }
+        else if(mode === 'forgot') document.getElementById('loginTitle').innerText = 'পাসওয়ার্ড রিসেট';
         else document.getElementById('loginTitle').innerText = 'লগইন করুন';
     }
 
-    function sendAdminOtp() {
+    function sendResetEmail() {
         let email = document.getElementById('forgotEmail').value.trim();
         if(!email) return alert('আপনার ইমেইল দিন!');
         window.firebaseResetPass(email);
@@ -598,12 +599,13 @@
         
         if(role === 'staff') {
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-            switchTab('sales', document.querySelectorAll('.sidebar-menu button')[1]);
+            let salesBtn = document.querySelectorAll('.sidebar-menu button')[1];
+            if(document.querySelector('.tab-content.active').id === 'dashboard') {
+                switchTab('sales', salesBtn);
+            }
         } else {
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
-            switchTab('dashboard', document.querySelectorAll('.sidebar-menu button')[0]);
         }
-        refreshUI();
     }
 
     function logout() { 
